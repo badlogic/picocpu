@@ -1,8 +1,19 @@
 var picocpu;
 (function (picocpu) {
-    var Range = (function () {
-        function Range() {
+    var AssemblerError = (function () {
+        function AssemblerError(position, message) {
+            this.position = position;
+            this.message = message;
         }
+        ;
+        return AssemblerError;
+    }());
+    picocpu.AssemblerError = AssemblerError;
+    var Range = (function () {
+        function Range(source) {
+            this.source = source;
+        }
+        ;
         Range.prototype.length = function () {
             return this.end - this.start;
         };
@@ -52,7 +63,7 @@ var picocpu;
             return char;
         };
         Stream.prototype.startRange = function () {
-            var range = new Range();
+            var range = new Range(this.source);
             range.line = this.line;
             range.index = this.index;
             range.start = this.column;
@@ -142,6 +153,9 @@ var picocpu;
                             number += stream.next();
                         }
                     }
+                    if (number == '-') {
+                        throw new AssemblerError(stream.endRange(), "Expected a negative number (-1234)");
+                    }
                     tokens.push(new Token(stream.endRange(), isFloat ? TokenType.FloatLiteral : TokenType.IntegerLiteral, number));
                     continue;
                 }
@@ -153,13 +167,67 @@ var picocpu;
                     tokens.push(new Token(stream.endRange(), this.getIdentifierType(identifier), identifier));
                     continue;
                 }
-                throw new Error("Expected a colon (:), coma (,), number (123.2), identifier (myLabel) or keyword (move, r1)! Got '" + char + "'");
+                if (char == '"') {
+                    var string = char;
+                    while (true) {
+                        char = stream.next();
+                        if (char == '\\') {
+                            var special = stream.next();
+                            if (special == '\\') {
+                                string += special;
+                            }
+                            else if (special == "n") {
+                                string += "\n";
+                            }
+                            else if (special == "r") {
+                                string += "\r";
+                            }
+                            else if (special == "t") {
+                                string += "\t";
+                            }
+                            else if (special == "\"") {
+                                string += '"';
+                            }
+                            else {
+                                string += "\\" + special;
+                            }
+                        }
+                        else if (char == "\"") {
+                            break;
+                        }
+                        else if (char.length == 0) {
+                            throw new AssemblerError(stream.endRange(), "Expected closing \" character for string");
+                        }
+                        else {
+                            string += char;
+                        }
+                    }
+                    tokens.push(new Token(stream.endRange(), TokenType.StringLiteral, string));
+                    continue;
+                }
+                if (char == '#') {
+                    while (stream.peek() != '\n' && stream.peek().length > 0) {
+                        stream.next();
+                    }
+                    continue;
+                }
+                throw new AssemblerError(stream.endRange(), "Expected a colon (:), coma (,), number (123.2), identifier (myLabel) or keyword (move, r1)! Got '" + char + "'");
             }
             return tokens;
+        };
+        Assembler.prototype.parse = function (tokens) {
+            var instructions = new Array();
+            return instructions;
         };
         return Assembler;
     }());
     picocpu.Assembler = Assembler;
+    var Instruction = (function () {
+        function Instruction() {
+        }
+        return Instruction;
+    }());
+    picocpu.Instruction = Instruction;
 })(picocpu || (picocpu = {}));
 var picocpu;
 (function (picocpu) {
@@ -167,7 +235,7 @@ var picocpu;
     (function (tests) {
         function runTests() {
             var assembler = new picocpu.Assembler();
-            assembler.assemble("\n\t\t\tSTRING: \"This is a test.\\nWith a new line.\"\n\t\t\tINTEGER: 234234\n\t\t\tNEGATIVEINTEGER: -234234\n\t\t\tFLOAT: 2.3423\n\t\t\tNEGATIVEFLOAT: -324.3242\n\n\t\t\t# This is a comment\n\t\t\tload LABEL, r0\n\t\t\tmove 123,\n\t\t");
+            console.log(assembler.tokenize("\n\t\t\tSTRING: \"This is a test.\\nWith a new line.\"\n\t\t\tINTEGER: 234234\n\t\t\tNEGATIVEINTEGER: -234234\n\t\t\tFLOAT: 2.3423\n\t\t\tNEGATIVEFLOAT: -324.3242\n\n\t\t\t# This is a comment\n\t\t\tload LABEL, r0\n\t\t\tmove 123,\n\t\t\t# eol comment"));
         }
         tests.runTests = runTests;
     })(tests = picocpu.tests || (picocpu.tests = {}));
@@ -176,6 +244,7 @@ var picocpu;
 (function (picocpu) {
     var VirtualMachine = (function () {
         function VirtualMachine() {
+            this.memory = new Uint32Array(1024 * 1024 * 16);
         }
         return VirtualMachine;
     }());

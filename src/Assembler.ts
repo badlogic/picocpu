@@ -1,9 +1,15 @@
 module picocpu {
+	export class AssemblerError {
+		constructor(public position: Range, public message: string) {};
+	}
+
 	export class Range {
 		line: number;
 		start: number;
 		end: number;
 		index: number;
+
+		constructor (public source: string) {};
 
 		length () {
 			return this.end - this.start;
@@ -51,7 +57,7 @@ module picocpu {
 		}
 
 		startRange() {
-			let range = new Range();
+			let range = new Range(this.source);
 			range.line = this.line;
 			range.index = this.index;
 			range.start = this.column;
@@ -165,6 +171,10 @@ module picocpu {
 						}
 					}
 
+					if (number == '-') {
+						throw new AssemblerError(stream.endRange(), "Expected a negative number (-1234)");
+					}
+
 					tokens.push(new Token(stream.endRange(), isFloat ? TokenType.FloatLiteral : TokenType.IntegerLiteral, number));
 					continue;
 				}
@@ -180,10 +190,60 @@ module picocpu {
 					continue;
 				}
 
-				throw new Error(`Expected a colon (:), coma (,), number (123.2), identifier (myLabel) or keyword (move, r1)! Got '${char}'`);
+				// string
+				if (char == '"') {
+					var string = char;
+					while (true) {
+						char = stream.next();
+						if (char == '\\') {
+							let special = stream.next();
+							if (special == '\\') {
+								string += special;
+							} else if (special == "n") {
+								string += "\n";
+							} else if (special == "r") {
+								string += "\r";
+							} else if (special == "t") {
+								string += "\t";
+							} else if (special == "\"") {
+								string += '"';
+							} else {
+								string += "\\" + special;
+							}
+						} else if (char == "\"") {
+							break;
+						} else if (char.length == 0) {
+							throw new AssemblerError(stream.endRange(), "Expected closing \" character for string")
+						} else {
+							string += char;
+						}
+					}
+					tokens.push(new Token(stream.endRange(), TokenType.StringLiteral, string));
+					continue;
+				}
+
+				// comment
+				if (char == '#') {
+					while (stream.peek() != '\n' && stream.peek().length > 0) {
+						stream.next();
+					}
+					continue;
+				}
+
+				throw new AssemblerError(stream.endRange(), `Expected a colon (:), coma (,), number (123.2), identifier (myLabel) or keyword (move, r1)! Got '${char}'`);
 			}
 
 			return tokens;
 		}
+
+		parse (tokens: Array<Token>): Array<Instruction> {
+			let instructions = new Array<Instruction>();
+
+			return instructions;
+		}
+	}
+
+	export class Instruction {
+
 	}
 }

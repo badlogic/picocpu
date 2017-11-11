@@ -1,9 +1,16 @@
 declare module picocpu {
+    class AssemblerError {
+        position: Range;
+        message: string;
+        constructor(position: Range, message: string);
+    }
     class Range {
+        source: string;
         line: number;
         start: number;
         end: number;
         index: number;
+        constructor(source: string);
         length(): number;
     }
     enum TokenType {
@@ -30,6 +37,9 @@ declare module picocpu {
         private isWhitespace(char);
         private getIdentifierType(identifier);
         tokenize(source: string): Token[];
+        parse(tokens: Array<Token>): Array<Instruction>;
+    }
+    class Instruction {
     }
 }
 declare module picocpu.tests {
@@ -37,5 +47,6 @@ declare module picocpu.tests {
 }
 declare module picocpu {
     class VirtualMachine {
+        memory: Uint32Array;
     }
 }
