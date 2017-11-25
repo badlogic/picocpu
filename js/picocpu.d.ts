@@ -4,6 +4,14 @@ declare module picocpu {
         message: string;
         constructor(position: Range, message: string);
     }
+    class Assembler {
+        assemble(source: string): void;
+        parse(tokens: Array<Token>): Array<Instruction>;
+    }
+    class Instruction {
+    }
+}
+declare module picocpu {
     class Range {
         source: string;
         line: number;
@@ -30,16 +38,12 @@ declare module picocpu {
         value: string | number;
         constructor(position: Range, type: TokenType, value?: string | number);
     }
-    class Assembler {
-        assemble(source: string): void;
+    class Lexer {
         private isDigit(char);
         private isAlpha(char);
         private isWhitespace(char);
         private getIdentifierType(identifier);
         tokenize(source: string): Token[];
-        parse(tokens: Array<Token>): Array<Instruction>;
-    }
-    class Instruction {
     }
 }
 declare module picocpu.tests {

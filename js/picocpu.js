@@ -9,6 +9,28 @@ var picocpu;
         return AssemblerError;
     }());
     picocpu.AssemblerError = AssemblerError;
+    var Assembler = (function () {
+        function Assembler() {
+        }
+        Assembler.prototype.assemble = function (source) {
+            var tokens = new picocpu.Lexer().tokenize(source);
+        };
+        Assembler.prototype.parse = function (tokens) {
+            var instructions = new Array();
+            return instructions;
+        };
+        return Assembler;
+    }());
+    picocpu.Assembler = Assembler;
+    var Instruction = (function () {
+        function Instruction() {
+        }
+        return Instruction;
+    }());
+    picocpu.Instruction = Instruction;
+})(picocpu || (picocpu = {}));
+var picocpu;
+(function (picocpu) {
     var Range = (function () {
         function Range(source) {
             this.source = source;
@@ -88,23 +110,20 @@ var picocpu;
         "push", "pop",
         "call"];
     var REGISTERS = ["rip", "rsp", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", "r16"];
-    var Assembler = (function () {
-        function Assembler() {
+    var Lexer = (function () {
+        function Lexer() {
         }
-        Assembler.prototype.assemble = function (source) {
-            var tokens = this.tokenize(source);
-        };
-        Assembler.prototype.isDigit = function (char) {
+        Lexer.prototype.isDigit = function (char) {
             return char >= '0' && char <= '9';
         };
-        Assembler.prototype.isAlpha = function (char) {
+        Lexer.prototype.isAlpha = function (char) {
             var lowerCase = char.toLowerCase();
             return lowerCase >= 'a' && lowerCase <= 'z';
         };
-        Assembler.prototype.isWhitespace = function (char) {
+        Lexer.prototype.isWhitespace = function (char) {
             return char == ' ' || char == '\n' || char == '\r' || char == '\t';
         };
-        Assembler.prototype.getIdentifierType = function (identifier) {
+        Lexer.prototype.getIdentifierType = function (identifier) {
             for (var i = 0; i < OPCODES.length; i++) {
                 if (identifier == OPCODES[i])
                     return TokenType.Opcode;
@@ -115,7 +134,7 @@ var picocpu;
             }
             return TokenType.Identifier;
         };
-        Assembler.prototype.tokenize = function (source) {
+        Lexer.prototype.tokenize = function (source) {
             var tokens = new Array();
             var stream = new Stream(source);
             while (true) {
@@ -133,11 +152,11 @@ var picocpu;
                     continue;
                 }
                 if (char == ':') {
-                    tokens.push(new Token(stream.endRange(), TokenType.Colon));
+                    tokens.push(new Token(stream.endRange(), TokenType.Colon, ":"));
                     continue;
                 }
                 if (char == ',') {
-                    tokens.push(new Token(stream.endRange(), TokenType.Coma));
+                    tokens.push(new Token(stream.endRange(), TokenType.Coma, ","));
                     continue;
                 }
                 if (char == '-' || this.isDigit(char)) {
@@ -154,7 +173,7 @@ var picocpu;
                         }
                     }
                     if (number == '-') {
-                        throw new AssemblerError(stream.endRange(), "Expected a negative number (-1234)");
+                        throw new picocpu.AssemblerError(stream.endRange(), "Expected a negative number (-1234)");
                     }
                     tokens.push(new Token(stream.endRange(), isFloat ? TokenType.FloatLiteral : TokenType.IntegerLiteral, number));
                     continue;
@@ -196,7 +215,7 @@ var picocpu;
                             break;
                         }
                         else if (char.length == 0) {
-                            throw new AssemblerError(stream.endRange(), "Expected closing \" character for string");
+                            throw new picocpu.AssemblerError(stream.endRange(), "Expected closing \" character for string");
                         }
                         else {
                             string += char;
@@ -211,31 +230,21 @@ var picocpu;
                     }
                     continue;
                 }
-                throw new AssemblerError(stream.endRange(), "Expected a colon (:), coma (,), number (123.2), identifier (myLabel) or keyword (move, r1)! Got '" + char + "'");
+                throw new picocpu.AssemblerError(stream.endRange(), "Expected a colon (:), coma (,), number (123.2), identifier (myLabel) or keyword (move, r1)! Got '" + char + "'");
             }
             return tokens;
         };
-        Assembler.prototype.parse = function (tokens) {
-            var instructions = new Array();
-            return instructions;
-        };
-        return Assembler;
+        return Lexer;
     }());
-    picocpu.Assembler = Assembler;
-    var Instruction = (function () {
-        function Instruction() {
-        }
-        return Instruction;
-    }());
-    picocpu.Instruction = Instruction;
+    picocpu.Lexer = Lexer;
 })(picocpu || (picocpu = {}));
 var picocpu;
 (function (picocpu) {
     var tests;
     (function (tests) {
         function runTests() {
-            var assembler = new picocpu.Assembler();
-            console.log(assembler.tokenize("\n\t\t\tSTRING: \"This is a test.\\nWith a new line.\"\n\t\t\tINTEGER: 234234\n\t\t\tNEGATIVEINTEGER: -234234\n\t\t\tFLOAT: 2.3423\n\t\t\tNEGATIVEFLOAT: -324.3242\n\n\t\t\t# This is a comment\n\t\t\tload LABEL, r0\n\t\t\tmove 123,\n\t\t\t# eol comment"));
+            var lexer = new picocpu.Lexer();
+            console.log(lexer.tokenize("\n\t\t\tSTRING: \"This is a test.\\nWith a new line.\"\n\t\t\tINTEGER: 234234\n\t\t\tNEGATIVEINTEGER: -234234\n\t\t\tFLOAT: 2.3423\n\t\t\tNEGATIVEFLOAT: -324.3242\n\n\t\t\t# This is a comment\n\t\t\tload LABEL, r0\n\t\t\tmove 123,\n\t\t\t# eol comment\n\t\t\t_41546546"));
         }
         tests.runTests = runTests;
     })(tests = picocpu.tests || (picocpu.tests = {}));
